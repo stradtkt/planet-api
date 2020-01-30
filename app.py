@@ -94,7 +94,19 @@ def register():
 
 @app.route('/login', methods=['POST'])
 def login():
-    pass
+    if request.is_json:
+        email = request.json['email']
+        password = request.json['password']
+    else:
+        email = request.form['email']
+        password = request.form['password']
+
+    test = User.query.filter_by(email=email, password=password).first()
+    if test:
+        access_token = create_access_token(identity=email)
+        return jsonify(message='Login Succeeded', access_token=access_token)
+    else:
+        return jsonify(message='Bad email or password'), 401
 
 
 
