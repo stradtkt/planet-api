@@ -3,13 +3,17 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Float
 import os
 from flask_marshmallow import Marshmallow
+from flask_jwt_extended import  JWTManager, jwt_required, create_access_token
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///" + os.path.join(basedir, 'planets.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JWT_SECRET_KEY'] = 'super-secret'
+
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
+jwt = JWTManager(app)
 
 
 @app.cli.command('db_create')
@@ -41,32 +45,27 @@ def db_seed():
     print("Database seeded")
 
 
-@app.route('/')
-def hello_world():
-    return jsonify(message="Hello")
-
-
 @app.route('/not_found')
 def not_found():
     return jsonify(message="That resource was not found"), 404
 
 
-@app.route('/parameters')
-def parameters():
-    name = request.args.get('name')
-    age = int(request.args.get('age'))
-    if age < 18:
-        return jsonify(message="Sorry " + name + ", you are not old enough"), 401
-    else:
-        return jsonify(message="Welcome " + name + ", you are old enough")
-
-
-@app.route('/url_variables/<string:name>/<int:age>')
-def url_variables(name: str, age: int):
-    if age < 18:
-        return jsonify(message="Sorry " + name + ", you are not old enough"), 401
-    else:
-        return jsonify(message="Welcome " + name + ", you are old enough")
+# @app.route('/parameters')
+# def parameters():
+#     name = request.args.get('name')
+#     age = int(request.args.get('age'))
+#     if age < 18:
+#         return jsonify(message="Sorry " + name + ", you are not old enough"), 401
+#     else:
+#         return jsonify(message="Welcome " + name + ", you are old enough")
+#
+#
+# @app.route('/url_variables/<string:name>/<int:age>')
+# def url_variables(name: str, age: int):
+#     if age < 18:
+#         return jsonify(message="Sorry " + name + ", you are not old enough"), 401
+#     else:
+#         return jsonify(message="Welcome " + name + ", you are old enough")
 
 
 @app.route('/planets', methods=['GET'])
@@ -74,6 +73,29 @@ def planets():
     planets_list = Planet.query.all()
     result = planets_schema.dump(planets_list)
     return jsonify(result)
+
+
+@app.route('/register', methods=['POST'])
+def register():
+    email = request.form['email']
+    test = User.query.filter_by(email=email).first()
+    if test:
+        return jsonify(message='That email already exists'), 409
+    else:
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        password = request.form['password']
+        user = User(first_name=first_name, last_name=last_name, email=email, password=password)
+        db.session.add(user)
+        db.session.commit()
+        return jsonify(message='User created successfully'), 201
+
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    pass
+
 
 
 class User(db.Model):
